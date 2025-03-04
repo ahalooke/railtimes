@@ -1,0 +1,1109 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LST Station Departure Board</title>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2768126157739335" crossorigin="anonymous"></script>
+  <!-- Bootstrap CSS for table styling only -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Google Font for a digital look -->
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    /* =========================
+       Base styling
+       ========================= */
+    body {
+      background-color: #000;
+      color: #FFA500;
+      font-family: 'VT323', monospace;
+      transition: background-color 0.3s, color 0.3s;
+      margin: 0;
+      padding: 0;
+    }
+    .departure-board {
+      margin: 50px auto;
+      max-width: 900px;
+    }
+    .departure-board h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 3rem;
+      cursor: pointer;
+    }
+    #clock {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 30px;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 2px solid #FFA500;
+      padding: 10px;
+      text-align: center;
+      font-size: 1.5rem;
+    }
+    th { background-color: #222; }
+    td { background-color: #111; }
+    .on-time { color: green; }
+    .delayed { color: red; }
+    
+    /* Popup for train timetable */
+    .popup-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .popup-content {
+      background-color: #000;
+      color: #FFA500;
+      border: 2px solid #FFA500;
+      padding: 20px;
+      max-width: 90%; max-height: 90%;
+      overflow-y: auto;
+      position: relative;
+      font-family: 'VT323', monospace;
+    }
+    .close-popup {
+      position: absolute;
+      top: 10px; right: 10px;
+      font-size: 2rem;
+      cursor: pointer;
+      color: #FFA500;
+    }
+    /* TFL Status Board */
+    #tflStatusBoard {
+      margin: 30px auto;
+      max-width: 900px;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    #tflStatusBoard h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 2.5rem;
+      color: #fff;
+    }
+    #tflStatusBoard table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #000;
+    }
+    #tflStatusBoard th, #tflStatusBoard td {
+      border: 2px solid #CC0000;
+      padding: 10px;
+      text-align: center;
+      font-size: 1.5rem;
+      color: #fff;
+    }
+    /* Instruction Popup */
+    #instructionPopup {
+      position: fixed;
+      right: 20px; top: 20px;
+      background: #000;
+      color: #FFA500;
+      border: 2px solid #FFA500;
+      padding: 15px;
+      max-width: 300px;
+      font-family: 'VT323', monospace;
+      z-index: 10000;
+    }
+    #instructionPopup button {
+      background: none;
+      border: 1px solid #FFA500;
+      color: #FFA500;
+      padding: 5px 10px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    /* Hamburger Button & Menu */
+    #hamburgerButton {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10003;
+      background: none;
+      border: 2px solid #FFA500;
+      color: #FFA500;
+      font-size: 2rem;
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+    #hamburgerMenu {
+      display: none;
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      background: #000;
+      color: #FFA500;
+      border: 2px solid #FFA500;
+      z-index: 10003;
+      padding: 10px;
+    }
+    #hamburgerMenu button {
+      background: none;
+      border: 1px solid #FFA500;
+      color: #FFA500;
+      padding: 5px 10px;
+      cursor: pointer;
+      margin: 5px 0;
+      width: 100%;
+    }
+    /* EXTRA BOX for full-screen ticker & clock */
+    .extra-box {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      height: 300px;
+      background-color: #000;
+      color: #FFA500;
+      border: 2px solid #FFA500;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      z-index: 10002;
+      transition: all 0.5s ease;
+    }
+    /* When in fullscreen, cover entire viewport */
+    .extra-box.fullscreen {
+      top: 0;
+      left: 0;
+      transform: none;
+      width: 100vw;
+      height: 100vh;
+    }
+    /* Moved Close Button: now top left with "X" */
+    .close-extra-box {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: none;
+      border: 1px solid #FFA500;
+      color: #FFA500;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    /* Ticker and clock inside extra box with increased text size */
+    #extraBoxTicker {
+      width: 100%;
+      text-align: center;
+      font-size: 1.6rem;
+      padding: 10px;
+      transition: opacity 0.5s;
+    }
+    #extraBoxClock {
+      width: 100%;
+      text-align: center;
+      font-size: 1.6rem;
+      padding: 10px;
+      margin-bottom: 30px; /* Added margin to move the clock up */
+    }
+    /* Scrolling Ticker Container */
+    .scrolling-ticker-container {
+      position: absolute;
+      bottom: 10px;
+      left: 0;
+      width: 100%;
+      overflow: hidden;
+      background-color: #000;
+    }
+    .scrolling-ticker {
+      display: inline-block;
+      white-space: nowrap;
+      font-size: 1.6rem;
+      padding-left: 100%;
+      animation: scrollTicker 15s linear infinite;
+    }
+    @keyframes scrollTicker {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+    
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    
+    /* Station Search Modal Styles */
+    .search-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      z-index: 10010;
+    }
+
+    .search-modal-content {
+      position: relative;
+      margin: 10% auto;
+      padding: 20px;
+      width: 80%;
+      max-width: 600px;
+      background-color: #000;
+      border: 2px solid #FFA500;
+      color: #FFA500;
+      font-family: 'VT323', monospace;
+    }
+
+    .close-search-modal {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      color: #FFA500;
+      font-size: 2rem;
+      cursor: pointer;
+    }
+
+    .search-form {
+      display: flex;
+      margin-bottom: 20px;
+    }
+
+    #stationSearchInput {
+      flex: 1;
+      padding: 10px;
+      font-size: 1.2rem;
+      background-color: #111;
+      border: 1px solid #FFA500;
+      color: #FFA500;
+      font-family: 'VT323', monospace;
+    }
+
+    #stationSearchButton {
+      padding: 10px 15px;
+      background-color: #222;
+      border: 1px solid #FFA500;
+      color: #FFA500;
+      font-family: 'VT323', monospace;
+      font-size: 1.2rem;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    .search-results {
+      background-color: #111;
+      padding: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .result-item {
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #333;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .result-item:hover {
+      background-color: #222;
+    }
+
+    .result-code {
+      font-weight: bold;
+      color: #FFA500;
+      margin-right: 10px;
+    }
+
+    /* Station Tooltip Styles */
+    .station-tooltip {
+      position: absolute;
+      z-index: 10000;
+      background-color: #000;
+      border: 2px solid #FFA500;
+      color: #FFA500;
+      padding: 15px;
+      font-family: 'VT323', monospace;
+      min-width: 250px;
+      max-width: 350px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      animation: fade-in 0.3s;
+    }
+
+    .tooltip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 5px;
+    }
+
+    .tooltip-header h3 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .tooltip-code {
+      background-color: #222;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+
+    .tooltip-body p {
+      margin: 5px 0;
+      font-size: 1.1rem;
+    }
+
+    .tooltip-footer {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #999;
+      text-align: center;
+      font-style: italic;
+    }
+
+    .tooltip-invalid {
+      color: #E32017;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .departure-board { margin: 20px auto; padding: 0 10px; }
+      .departure-board h1 { font-size: 2.5rem; }
+      table, th, td { font-size: 1.2rem; }
+      #tflStatusBoard { margin: 20px auto; padding: 0 10px; }
+      #tflStatusBoard h2 { font-size: 2rem; }
+      #instructionPopup { right: 10px; top: 10px; max-width: 250px; font-size: 1rem; }
+      .extra-box { width: 80%; height: 40%; }
+      .search-modal-content {
+        width: 90%;
+        margin: 15% auto;
+      }
+      .search-form {
+        flex-direction: column;
+      }
+      #stationSearchButton {
+        margin-left: 0;
+        margin-top: 10px;
+      }
+      .station-tooltip {
+        min-width: 200px;
+        max-width: 300px;
+      }
+    }
+    @media (max-width: 480px) {
+      .departure-board h1 { font-size: 2rem; }
+      table, th, td { font-size: 1rem; padding: 5px; }
+      #tflStatusBoard h2 { font-size: 1.5rem; }
+      #tflStatusBoard th, #tflStatusBoard td { font-size: 1rem; padding: 5px; }
+      #instructionPopup { right: 5px; top: 5px; max-width: 200px; font-size: 0.9rem; }
+      .extra-box { width: 90%; height: 50%; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Hamburger Button & Menu -->
+  <button id="hamburgerButton">☰</button>
+  <div id="hamburgerMenu">
+    <button id="menuToggleDark">Toggle Dark/Light</button>
+    <button id="menuOpenExtraBox">Open Extra Box</button>
+  </div>
+
+  <!-- National Rail Departure Board -->
+  <div class="container departure-board">
+    <h1 id="boardTitle">LST Station Departure Board</h1>
+    <!-- Ticking Clock at top -->
+    <div id="clock"></div>
+    <table class="table table-dark table-bordered">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Destination</th>
+          <th>Operator</th>
+          <th>Status</th>
+          <th>Platform</th>
+          <th>Countdown</th>
+        </tr>
+      </thead>
+      <tbody id="departuresBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Popup for Train Timetable -->
+  <div id="timetablePopup" class="popup-overlay">
+    <div class="popup-content" id="timetablePopupContent">
+      <span class="close-popup">&times;</span>
+      <h2 id="popupTitle">Timetable for Train</h2>
+      <div id="timetableSection">
+        <table class="table table-dark table-bordered">
+          <thead>
+            <tr>
+              <th>Stop</th>
+              <th>Aimed</th>
+              <th>Actual</th>
+            </tr>
+          </thead>
+          <tbody id="popupBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TFL Status Board -->
+  <div class="container" id="tflStatusBoard">
+    <h2>TFL Network Status</h2>
+    <table class="table table-dark table-bordered">
+      <thead>
+        <tr>
+          <th>Line</th>
+          <th>Status</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody id="tflStatusBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Instruction Popup -->
+  <div id="instructionPopup">
+    <p>
+      To change the station, click the three-letter code in the board title.<br>
+      (e.g., click "LST" to change station)
+    </p>
+    <button id="closeInstruction">Close</button>
+  </div>
+
+  <!-- Extra Box for Ticker, Clock & Scrolling Ticker -->
+  <div id="extraBox" class="extra-box">
+    <button id="closeExtraBox" class="close-extra-box">X</button>
+    <!-- Ticker area (displays one departure at a time with platform) -->
+    <div id="extraBoxTicker"></div>
+    <!-- Clock area -->
+    <div id="extraBoxClock"></div>
+    <!-- Scrolling Ticker Container -->
+    <div class="scrolling-ticker-container">
+      <div id="scrollingTicker" class="scrolling-ticker"></div>
+    </div>
+  </div>
+
+  <!-- Station Search Modal -->
+  <div id="stationSearchModal" class="search-modal">
+    <div class="search-modal-content">
+      <span class="close-search-modal">&times;</span>
+      <h2>Find a Station</h2>
+      <div class="search-form">
+        <input type="text" id="stationSearchInput" placeholder="Enter station name (e.g., London Kings Cross)">
+        <button id="stationSearchButton">Search</button>
+      </div>
+      <div id="searchResults" class="search-results"></div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS and dependencies -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script>
+    // Mapping of operator codes to full names
+    const operatorNames = {
+      'C2': 'c2c',
+      'GA': 'Greater Anglia'
+    };
+
+    let currentStation = 'LST';
+    let isDarkMode = true;
+    let departures = [];
+    let tflData = [];
+
+    // Fetch departures data
+    async function fetchDepartures() {
+      try {
+        const response = await fetch('/api/departures?station=' + currentStation);
+        departures = await response.json();
+        renderDepartures(departures);
+        // If extra box is open, update its tickers
+        if(document.getElementById('extraBox').style.display === 'flex'){
+          updateExtraBoxTicker();
+          updateScrollingTicker();
+        }
+      } catch (error) {
+        console.error('Error fetching departures:', error);
+      }
+    }
+
+    function renderDepartures(deps) {
+      const tbody = document.getElementById('departuresBody');
+      tbody.innerHTML = '';
+      deps.forEach((dep, i) => {
+        const time = dep.aimed_departure_time || 'N/A';
+        const destination = dep.destination_name || 'N/A';
+        const opCode = dep.operator || 'N/A';
+        const operator = operatorNames[opCode] || opCode;
+        const platform = dep.platform || 'N/A';
+        const delay = computeDelay(dep.aimed_departure_time, dep.expected_departure_time);
+        const statusText = delay > 0 ? `Delayed +${delay}` : 'On time';
+        const statusClass = delay > 0 ? 'delayed' : 'on-time';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${time}</td>
+          <td class="destination" style="cursor:pointer;">${destination}</td>
+          <td>${operator}</td>
+          <td class="${statusClass}">${statusText}</td>
+          <td>${platform}</td>
+          <td id="countdown-${i}"></td>
+        `;
+        // Clicking destination shows timetable popup
+        row.querySelector('.destination').addEventListener('click', () => showTimetable(dep));
+        tbody.appendChild(row);
+      });
+    }
+
+    // Compute delay in minutes
+    function computeDelay(aimed, expected) {
+      if (!aimed || !expected) return 0;
+      const [aimedHour, aimedMin] = aimed.split(':').map(Number);
+      const [expectedHour, expectedMin] = expected.split(':').map(Number);
+      const now = new Date();
+      const aimedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), aimedHour, aimedMin, 0);
+      const expectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), expectedHour, expectedMin, 0);
+      return Math.round((expectedDate - aimedDate) / 60000);
+    }
+
+    // Format seconds as mm:ss
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // Update countdowns
+    function updateCountdowns() {
+      departures.forEach((dep, i) => {
+        const countdownEl = document.getElementById(`countdown-${i}`);
+        if (!countdownEl) return;
+        const timeStr = dep.expected_departure_time || dep.aimed_departure_time;
+        if (!timeStr) return;
+        const now = new Date();
+        const [h, m] = timeStr.split(':').map(Number);
+        const departureTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+        let remainingSeconds = Math.floor((departureTime - now) / 1000);
+        if (remainingSeconds <= 0) {
+          countdownEl.textContent = "Departed";
+          countdownEl.style.backgroundColor = '';
+          countdownEl.style.animation = 'none';
+          return;
+        }
+        if (remainingSeconds >= 300) {
+          countdownEl.textContent = formatTime(remainingSeconds);
+          countdownEl.style.backgroundColor = 'green';
+          countdownEl.style.animation = 'none';
+        } else if (remainingSeconds < 300 && remainingSeconds >= 180) {
+          countdownEl.textContent = formatTime(remainingSeconds);
+          countdownEl.style.backgroundColor = 'orange';
+          countdownEl.style.animation = 'pulse 2s infinite';
+        } else if (remainingSeconds < 180 && remainingSeconds >= 60) {
+          countdownEl.textContent = formatTime(remainingSeconds);
+          countdownEl.style.backgroundColor = 'orange';
+          countdownEl.style.animation = 'flash 2s infinite';
+        } else if (remainingSeconds < 60 && remainingSeconds >= 30) {
+          countdownEl.textContent = formatTime(remainingSeconds);
+          countdownEl.style.backgroundColor = 'red';
+          countdownEl.style.animation = 'flash 1s infinite';
+        } else if (remainingSeconds < 30) {
+          let alternator = Math.floor((30 - remainingSeconds) / 2) % 2;
+          countdownEl.textContent = alternator === 0 ? "RD" : "RA";
+          countdownEl.style.backgroundColor = 'red';
+          countdownEl.style.animation = 'none';
+        }
+      });
+    }
+    setInterval(updateCountdowns, 1000);
+
+    // Timetable popup
+    function showTimetable(dep) {
+      document.getElementById('popupTitle').textContent = `Timetable for train to ${dep.destination_name}`;
+      const popupBody = document.getElementById('popupBody');
+      popupBody.innerHTML = '';
+      if (dep.service_timetable && dep.service_timetable.id) {
+        const timetableUrl = dep.service_timetable.id;
+        fetch(`/api/service?url=${encodeURIComponent(timetableUrl)}`)
+          .then(res => res.json())
+          .then(serviceData => {
+            if (serviceData.stops && Array.isArray(serviceData.stops) && serviceData.stops.length > 0) {
+              renderTimetable(serviceData.stops);
+            } else {
+              renderFallbackTimetable();
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching service timetable:', err);
+            renderFallbackTimetable();
+          });
+      } else {
+        renderFallbackTimetable();
+      }
+      document.getElementById('timetablePopup').style.display = 'flex';
+    }
+
+    function renderTimetable(stops) {
+      const popupBody = document.getElementById('popupBody');
+      popupBody.innerHTML = '';
+      stops.forEach(stop => {
+        const tr = document.createElement('tr');
+        const stopName = stop.station_name || stop.station_code || "Unknown";
+        const aimed = stop.aimed_arrival_time || stop.aimed_departure_time || '-';
+        const actual = stop.actual_arrival_time || stop.actual_departure_time || '-';
+        const rowClass = (stop.actual_arrival_time || stop.actual_departure_time) ? 'passed' : '';
+        tr.className = rowClass;
+        tr.innerHTML = `
+          <td>${stopName}</td>
+          <td>${aimed}</td>
+          <td>${actual}</td>
+        `;
+        popupBody.appendChild(tr);
+      });
+    }
+
+    function renderFallbackTimetable() {
+      const popupBody = document.getElementById('popupBody');
+      popupBody.innerHTML = '';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.setAttribute('colspan', '3');
+      td.textContent = "No timetable available";
+      tr.appendChild(td);
+      popupBody.appendChild(tr);
+    }
+
+    document.querySelector('.close-popup').addEventListener('click', () => {
+      document.getElementById('timetablePopup').style.display = 'none';
+    });
+
+    // TFL Status
+    async function fetchTFLStatus() {
+      try {
+        const response = await fetch('/api/tflStatus');
+        tflData = await response.json();
+        renderTFLStatus(tflData);
+      } catch (err) {
+        console.error("Error fetching TFL status:", err);
+      }
+    }
+
+    function renderTFLStatus(lines) {
+      const tbody = document.getElementById('tflStatusBody');
+      tbody.innerHTML = '';
+      const lineColors = {
+        "Bakerloo": { bg: "#B36305", fg: "#FFFFFF" },
+        "Central": { bg: "#E32017", fg: "#FFFFFF" },
+        "Circle": { bg: "#FFD300", fg: "#000000" },
+        "District": { bg: "#00782A", fg: "#FFFFFF" },
+        "Hammersmith & City": { bg: "#F3A9BB", fg: "#000000" },
+        "H'smith & City": { bg: "#F3A9BB", fg: "#000000" },
+        "Jubilee": { bg: "#A0A5A9", fg: "#000000" },
+        "Metropolitan": { bg: "#9B0056", fg: "#FFFFFF" },
+        "Northern": { bg: "#000000", fg: "#FFFFFF" },
+        "Piccadilly": { bg: "#003688", fg: "#FFFFFF" },
+        "Victoria": { bg: "#0098D4", fg: "#FFFFFF" },
+        "Waterloo & City": { bg: "#95CDBA", fg: "#000000" },
+        "Overground": { bg: "#EE7C0E", fg: "#FFFFFF" },
+        "Elizabeth line": { bg: "#6950A1", fg: "#FFFFFF" },
+        "DLR": { bg: "#00AFAD", fg: "#FFFFFF" },
+        "Tram": { bg: "#66CC00", fg: "#000000" }
+      };
+
+      lines.forEach(line => {
+        const lineName = line.name || "Unknown";
+        const statusObj = (line.lineStatuses && line.lineStatuses[0]) || {};
+        const status = statusObj.statusSeverityDescription || "Unknown";
+        const details = statusObj.reason || "";
+        const { bg, fg } = lineColors[lineName] || { bg: "#FFFFFF", fg: "#000000" };
+        let statusColor = "#FFFFFF";
+        if (status.toLowerCase().includes("good service")) {
+          statusColor = "#009933";
+        } else if (status.toLowerCase().includes("minor delays")) {
+          statusColor = "#FFCC00";
+        } else if (status.toLowerCase().includes("severe delays") || status.toLowerCase().includes("closed")) {
+          statusColor = "#CC0000";
+        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="background-color:${bg}; color:${fg};">${lineName}</td>
+          <td style="color:${statusColor};">${status}</td>
+          <td>${details}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Clock updates
+    function updateClock() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-GB', { hour12: false });
+      document.getElementById('clock').textContent = timeString;
+      const extraBoxClock = document.getElementById('extraBoxClock');
+      if (extraBoxClock) { extraBoxClock.textContent = timeString; }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Hamburger menu logic
+    const hamburgerButton = document.getElementById('hamburgerButton');
+    const hamburgerMenu = document.getElementById('hamburgerMenu');
+    hamburgerButton.addEventListener('click', () => {
+      hamburgerMenu.style.display = (hamburgerMenu.style.display === 'block') ? 'none' : 'block';
+    });
+    document.getElementById('menuToggleDark').addEventListener('click', () => {
+      if (isDarkMode) {
+        document.body.style.backgroundColor = '#fff';
+        document.body.style.color = '#000';
+      } else {
+        document.body.style.backgroundColor = '#000';
+        document.body.style.color = '#FFA500';
+      }
+      isDarkMode = !isDarkMode;
+      hamburgerMenu.style.display = 'none';
+    });
+    document.getElementById('menuOpenExtraBox').addEventListener('click', () => {
+      extraBox.style.display = 'flex';
+      startExtraBoxCycle();
+      updateScrollingTicker();
+      hamburgerMenu.style.display = 'none';
+    });
+
+    // Extra Box ticker & fullscreen functionality
+    const extraBox = document.getElementById('extraBox');
+    const extraBoxTicker = document.getElementById('extraBoxTicker');
+    const extraBoxClockElem = document.getElementById('extraBoxClock');
+    const closeExtraBoxBtn = document.getElementById('closeExtraBox');
+    let extraBoxTickerInterval, extraBoxTflInterval;
+    let extraBoxTickerIndex = 0;
+
+    // Updated to include platform
+    function updateExtraBoxTicker() {
+      const nextThree = departures.slice(0, 3);
+      if (nextThree.length === 0) {
+        extraBoxTicker.innerHTML = '<div class="fade-in">No trains found for station ' + currentStation + '</div>';
+        return;
+      }
+      const dep = nextThree[extraBoxTickerIndex];
+      const delay = computeDelay(dep.aimed_departure_time, dep.expected_departure_time);
+      const statusText = delay > 0 ? `Delayed +${delay}` : 'On time';
+      extraBoxTicker.innerHTML = `<div class="fade-in"><strong>${dep.aimed_departure_time}</strong> → <strong>${dep.destination_name}</strong> (Platform: ${dep.platform || 'N/A'})<br/>Status: ${statusText}</div>`;
+    }
+
+    // New function for the scrolling ticker at the bottom
+    function updateScrollingTicker() {
+      const topThree = departures.slice(0, 3);
+      const scrollingTickerElem = document.getElementById('scrollingTicker');
+      if (topThree.length === 0) {
+        scrollingTickerElem.textContent = "No trains available";
+        return;
+      }
+      let tickerText = topThree.map(dep => {
+        const time = dep.aimed_departure_time || 'N/A';
+        const destination = dep.destination_name || 'N/A';
+        const platform = dep.platform || 'N/A';
+        return `${time} to ${destination} (Platform: ${platform})`;
+      }).join("    ||    ");
+      scrollingTickerElem.textContent = tickerText;
+    }
+
+    function triggerTflOverride() {
+      clearInterval(extraBoxTickerInterval);
+      const issues = getDisruptedLines(tflData).length;
+      const tflDisplayDuration = 5000 + (issues * 2000);
+      if (issues === 0) {
+        extraBoxTicker.innerHTML = '<div class="fade-in">TFL: All lines good service</div>';
+      } else {
+        let statusHtml = '<div class="fade-in">TFL Status:<br/>';
+        getDisruptedLines(tflData).forEach(line => {
+          statusHtml += `${line.lineName}: ${line.status}${line.details ? ' ('+line.details+')' : ''}<br/>`;
+        });
+        statusHtml += '</div>';
+        extraBoxTicker.innerHTML = statusHtml;
+      }
+      setTimeout(() => {
+        updateExtraBoxTicker();
+        extraBoxTickerInterval = setInterval(() => {
+          extraBoxTickerIndex = (extraBoxTickerIndex + 1) % 3;
+          updateExtraBoxTicker();
+        }, 5000);
+      }, tflDisplayDuration);
+    }
+
+    function startExtraBoxCycle() {
+      extraBoxTickerIndex = 0;
+      updateExtraBoxTicker();
+      updateScrollingTicker(); // update scrolling ticker when extra box opens
+      extraBoxTickerInterval = setInterval(() => {
+        extraBoxTickerIndex = (extraBoxTickerIndex + 1) % 3;
+        updateExtraBoxTicker();
+      }, 5000);
+      extraBoxTflInterval = setInterval(triggerTflOverride, 30000);
+    }
+
+    function stopExtraBoxCycle() {
+      clearInterval(extraBoxTickerInterval);
+      clearInterval(extraBoxTflInterval);
+    }
+
+    // Toggle full-screen extra box on click (ignoring clicks on the close button)
+    extraBox.addEventListener('click', function(e) {
+      if (e.target.id !== 'closeExtraBox') {
+        extraBox.classList.toggle('fullscreen');
+      }
+    });
+
+    closeExtraBoxBtn.addEventListener('click', () => {
+      extraBox.style.display = 'none';
+      stopExtraBoxCycle();
+    });
+
+    document.getElementById('closeInstruction').addEventListener('click', () => {
+      document.getElementById('instructionPopup').style.display = 'none';
+    });
+
+    function getDisruptedLines(lines) {
+      const disrupted = [];
+      lines.forEach(line => {
+        const lineName = line.name || "Unknown";
+        const statusObj = (line.lineStatuses && line.lineStatuses[0]) || {};
+        const status = statusObj.statusSeverityDescription || "Unknown";
+        const details = statusObj.reason || "";
+        if (!status.toLowerCase().includes("good service")) {
+          disrupted.push({ lineName, status, details });
+        }
+      });
+      return disrupted;
+    }
+
+    // Station search functionality
+    let stationTooltip = null;
+    let tooltipTimeout = null;
+
+    // Initialize station tooltip and search modal
+    function initStationFeatures() {
+      // Create tooltip element if it doesn't exist
+      if (!stationTooltip) {
+        stationTooltip = document.createElement('div');
+        stationTooltip.className = 'station-tooltip';
+        stationTooltip.style.display = 'none';
+        document.body.appendChild(stationTooltip);
+      }
+      
+      // Set up the station code click handler
+      setupStationCodeClickHandler();
+      
+      // Set up the search modal handlers
+      setupSearchModalHandlers();
+    }
+
+    // Set up the station code click handler (enhanced)
+    function setupStationCodeClickHandler() {
+      const stationTitle = document.getElementById('boardTitle');
+      
+      // Replace the existing click handler
+      stationTitle.onclick = function() {
+        // Show the search modal instead of a simple prompt
+        document.getElementById('stationSearchModal').style.display = 'block';
+        document.getElementById('stationSearchInput').focus();
+      };
+      
+      // Show tooltip on hover
+      stationTitle.addEventListener('mouseenter', () => {
+        if (tooltipTimeout) {
+          clearTimeout(tooltipTimeout);
+        }
+        updateStationTooltip();
+      });
+      
+      // Hide tooltip when mouse leaves
+      stationTitle.addEventListener('mouseleave', () => {
+        tooltipTimeout = setTimeout(() => {
+          stationTooltip.style.display = 'none';
+        }, 500);
+      });
+      
+      // Keep tooltip open when hovering it
+      stationTooltip.addEventListener('mouseenter', () => {
+        if (tooltipTimeout) {
+          clearTimeout(tooltipTimeout);
+        }
+      });
+      
+      stationTooltip.addEventListener('mouseleave', () => {
+        tooltipTimeout = setTimeout(() => {
+          stationTooltip.style.display = 'none';
+        }, 500);
+      });
+    }
+
+    // Update the station tooltip
+    function updateStationTooltip() {
+      const stationTitle = document.getElementById('boardTitle');
+      const titleText = stationTitle.textContent;
+      const codeMatch = titleText.match(/^([A-Z]{3})/);
+      
+      if (codeMatch && codeMatch[1]) {
+        const code = codeMatch[1];
+        
+        // Show loading state
+        stationTooltip.innerHTML = 'Loading station information...';
+        stationTooltip.style.display = 'block';
+        
+        // Position the tooltip below the title
+        const titleRect = stationTitle.getBoundingClientRect();
+        stationTooltip.style.top = `${titleRect.bottom + window.scrollY + 5}px`;
+        stationTooltip.style.left = `${titleRect.left + window.scrollX}px`;
+        
+        // Fetch station information
+        fetch(`/api/station-info-quick/${code}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.isValid === false) {
+              stationTooltip.innerHTML = `
+                <div class="tooltip-invalid">
+                  <p>Unknown or invalid station code: ${code}</p>
+                  <p>Click to search for a different station.</p>
+                </div>
+              `;
+              return;
+            }
+            
+            stationTooltip.innerHTML = `
+              <div class="tooltip-header">
+                <h3>${data.fullName || code}</h3>
+                <span class="tooltip-code">${code}</span>
+              </div>
+              <div class="tooltip-body">
+                <p><strong>Location:</strong> ${data.location || 'Unknown'}</p>
+                <p><strong>Region:</strong> ${data.region || 'Unknown'}</p>
+                <p><strong>Operators:</strong> ${data.mainOperators || 'Unknown'}</p>
+                <p><strong>Category:</strong> ${data.category || 'Unknown'}</p>
+              </div>
+              <div class="tooltip-footer">
+                <span>Click station code to change station</span>
+              </div>
+            `;
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            stationTooltip.innerHTML = 'Failed to load station information.';
+          });
+      }
+    }
+
+    // Set up search modal handlers
+    function setupSearchModalHandlers() {
+      const modal = document.getElementById('stationSearchModal');
+      const closeBtn = document.querySelector('.close-search-modal');
+      const searchBtn = document.getElementById('stationSearchButton');
+      const searchInput = document.getElementById('stationSearchInput');
+      
+      // Close modal when clicking X
+      closeBtn.onclick = function() {
+        modal.style.display = 'none';
+      };
+      
+      // Close modal when clicking outside of it
+      window.onclick = function(event) {
+        if (event.target == modal) {
+          modal.style.display = 'none';
+        }
+      };
+      
+      // Search on button click
+      searchBtn.onclick = function() {
+        searchStation();
+      };
+      
+      // Search on Enter key
+      searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          searchStation();
+        }
+      });
+    }
+
+    // Search for a station
+    function searchStation() {
+      const query = document.getElementById('stationSearchInput').value.trim();
+      const resultsDiv = document.getElementById('searchResults');
+      
+      if (!query) {
+        resultsDiv.innerHTML = '<p>Please enter a station name.</p>';
+        return;
+      }
+      
+      resultsDiv.innerHTML = '<p>Searching...</p>';
+      
+      // Call the station search API
+      fetch('/api/station-search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.stationCode) {
+          resultsDiv.innerHTML = `
+            <div class="result-item" data-code="${data.stationCode}">
+              <span class="result-code">${data.stationCode}</span> - Found station code for "${query}"
+            </div>
+            <p>Click on the result to select this station.</p>
+          `;
+          
+          // Add click handler to the result
+          document.querySelector('.result-item').addEventListener('click', function() {
+            const code = this.getAttribute('data-code');
+            selectStation(code);
+          });
+        } else {
+          resultsDiv.innerHTML = `<p>No matching station found for "${query}". Try a different search term.</p>`;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        resultsDiv.innerHTML = '<p>Error searching for station. Please try again.</p>';
+      });
+    }
+
+    // Select a station and update the board
+    function selectStation(code) {
+      if (code && code.length === 3) {
+        currentStation = code.toUpperCase();
+        document.getElementById('boardTitle').textContent = `${currentStation} Station Departure Board`;
+        document.getElementById('stationSearchModal').style.display = 'none';
+        fetchDepartures();
+      }
+    }
+
+    // Initial load and auto-refresh
+    fetchDepartures();
+    fetchTFLStatus();
+    setInterval(fetchDepartures, 30000);
+    setInterval(fetchTFLStatus, 30000);
+
+    // Initialize station features
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize after the page is loaded
+      initStationFeatures();
+    });
+  </script>
+</body>
+</html>
